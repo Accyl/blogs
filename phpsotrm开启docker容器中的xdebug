@@ -1,0 +1,13 @@
+一.配置docker容器
+    在docker容器中安装好php-pecl-xdebug之后，编辑/etc/php.d/下的*-xdebug.ini文件
+    1.将xdebug.remote_enable参数设置为1
+    2.将xdebug.remote_host参数设置为你的宿主机IP（如果你的phpstorm安装在你的宿主机）或设置一个hostname，并把hostname添加到/etc/hosts下，IP指向你的宿主机
+    3.将xdebug.remote_port参数设置为你要使用的端口（默认为9000）
+二.配置phpstorm
+    打开phpstorm的设置:file->settings
+    1.配置languages & Frameworks->PHP->Debug页面中的debug port为你容器中xdebug设置的端口
+    2.配置languages & Frameworks->PHP->Servers页面，添加Server
+三.配置phpstorm的debug
+    打开phpstorm的设置:run->Edit configurations
+    1.添加一个PHP Web Appliation
+四.将右上角的小电话的图标设置为监听状态就可以启用XDEBUG调试程序了

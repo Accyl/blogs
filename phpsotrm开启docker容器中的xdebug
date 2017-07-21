@@ -11,3 +11,8 @@
     打开phpstorm的设置:run->Edit configurations
     1.添加一个PHP Web Appliation
 四.将右上角的小电话的图标设置为监听状态就可以启用XDEBUG调试程序了
+
+
+浏览器扩展:
+    火狐浏览器可以安装：The easiest xdebug扩展，该扩展可以debug时的idekey，使其它页面也可以被调试
+    chrome浏览器可以安装：XDebug Helper扩展

@@ -14,5 +14,5 @@
 
 
 浏览器扩展:
-    火狐浏览器可以安装：The easiest xdebug扩展，该扩展可以debug时的idekey，使其它页面也可以被调试
+    火狐浏览器可以安装：The easiest xdebug扩展，该扩展可以保存debug时的idekey，使其它页面也可以被调试
     chrome浏览器可以安装：XDebug Helper扩展

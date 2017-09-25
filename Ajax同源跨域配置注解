@@ -1,0 +1,36 @@
+在前后端分离的项目中，如果前后端的域名不同，并且使用REST风格的接口或者的AJAX请求，就会产生同源跨域的问题
+
+配置允许同源跨域需要分别在前后端添加一些设置，以保证客户端的身份能够被正确的验证
+
+一.服务端配置
+
+    服务端需要在响应的header中设置几个选项
+    1.Access-Control-Allow-Origin : http://www.frontend.com (这里不能设置为*)
+    2.Access-Control-Allow-Credentials : true (这个header设置允许客户端携带身份验证数据，也就是cookie请求服务端接口，也是因为这个参数所以上边的Access-Control-Allow-Origin不能设置为*，否则浏览器会提示不安全而拒绝访问。如果不设置这个参数是没办法携带cookie信息的)
+
+二.客户端配置
+
+    在服务端的响应header中设置了Access-Control-Allow-Origin之后，客户端的域名下的Ajax便可以请求服务端的接口了，但是这时的请求是无法携带身份认证信息的，即使服务端添加了Access-Control-Allow-Credentials这个header也是不行的，需要在执行Ajax请求时配置相应的xhr参数
+    1.使用同步的Ajax请求时设置:xhrFields:{withCredentials:true}
+    e.g.:
+        $.ajax({
+            async:true,
+            url:'http://www.backend.com/api/login',
+            data:{username:'username', password:'password'},
+            dataType:'json',
+            type:'post',
+            xhrFields:{withCredentials:true},
+            success:function(data){...}
+        });
+    2.使用异步的Ajax请求时设置xhrFields选项据说不生效，应该使用另一种方式配置（未验证）:beforeSend:function(xhr){xhr.withCredentials = true;}
+    e.g.:
+        $.ajax({
+            async:false,
+            url:'http://www.backend.com/api/login',
+            data:{username:'username', password:'password'},
+            dataType:'json',
+            type:'post',
+            beforeSend:function(xhr){xhr.withCredentials = true;},
+            success:function(data){...}
+        });
+

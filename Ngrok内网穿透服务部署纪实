@@ -1,0 +1,90 @@
+Ngrok内网穿透服务部署
+ngrok穿透方案包含服务端和客户端两个部分
+
+部署Ngrok服务端需要做以下准备
+  1.拥有公网固定ip的服务器（一定要注意该服务器的防火墙是否开放了端口，ngrok可能会随机使用一些比较大的端口号，或者也可以指定固定的端口号同时加入防火墙规则）
+  2.一个域名，国内域名无需备案
+  3.为域名添加两个A类型的解析记录指向你的服务器ip
+    ngrok.你的域名.com(ngrok这个前缀可以随意更换)
+    *.ngrok.你的域名.com(ngrok这个前缀可以随意更换)
+
+编译ngrok的可执行文件之前我们需要先给ngrok生成一套证书，以供ngrok的服务端和客户端进行认证，该证书可以从证书颁发机构获取，也可以自行生成，方式如下
+  设置环境变量保存你的域名
+    export NGROK_DOMAIN=ngrok.你的域名.com
+  生成证书
+    openssl genrsa -out rootCA.key 2048
+    openssl req -x509 -new -nodes -key rootCA.key -subj "/CN=$NGROK_DOMAIN" -days 5000 -out rootCA.pem
+    
+    openssl genrsa -out server.key 2048
+    openssl req -new -key server.key -subj "/CN=$NGROK_DOMAIN" -out server.csr
+    openssl x509 -req -in server.csr -CA rootCA.pem -CAkey rootCA.key -CAcreateserial -out server.crt -days 5000
+这里我们生成好的证书在下边会被用到
+
+ngrok是用go语言写的一个开源项目，所以在编译时需要有go语言的环境
+  yum install golang
+然后在服务器上将https://github.com/inconshreveable/ngrok这个项目clone到本地，可以阅读docs/SELFHOSTING.md文件查看如何编译。
+
+进入到ngrok的项目目录，在进行编译之前，我们需要先用上边生成的证书文件替换掉ngrok自身的默认证书文件
+  cp /上边证书的目录/server.key assets/server/tls/snakeoil.key
+  cp /上边证书的目录/server.crt assets/server/tls/snakeoil.crt
+  cp /上边证书的目录/rootCA.pem assets/client/tls/ngrokroot.crt
+
+接下来执行make release-server命令进行服务端程序的编译工作，如果成功编译就会在ngrok/bin目录下会生成一个可执行文件ngrokd
+
+注：编译时需要clone其他几个github项目，如果无法自动clone也可以按照编译时的信息手动进行克隆，克隆完成后再进行make release-server即可
+
+然后我们继续编译与该服务端程序相对应的ngrok客户端程序（理论上所有的ngrok的程序都是相同的，也就是通过配置这个ngrok客户端可以连接到任何一个人的ngrok服务端程序，同样的其他人的客户端也可以连接到你的ngrok服务端程序）
+执行make release-client来编译ngrok的客户端程序，如果成功编译就会在ngrok/bin目录下生成一个可执行文件ngrok（注意是不是ngrokd，有d的是服务端程序名称）
+
+
+接下来我们就可以使用该套服务端与客户端进行内网穿透了，首先启动服务端程序，推荐写成系统服务的配置文件，通过systemtl来进行管理
+  将ngrok/bin/ngrokd文件拷贝到/usr/local/bin目录下
+  创建/etc/systemd/system/ngrokd.service文件，将如下内容写入其中
+    [Unit]
+    Description=ngrok service
+    After=network.target
+    After=syslog.target
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/local/bin/ngrokd -domain=ngrok.你的域名.com -log=/var/log/ngrokd.log -log-level=WARNING
+    ExecStop=/bin/kill $MAINPID
+    ExecReload=/bin/kill -USR1 $MAINPID
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+  注意：/usr/local/bin/ngrokd -domain=ngrok.你的域名.com -log=/var/log/ngrokd.log -log-level=WARNING这一行的参数一定不能有引号
+  
+  通过systemctl start ngrokd来启动你的服务端进程，如果需要开机启动可以执行systemctl enable ngrokd来加入开机启动的服务列表
+  注意：在执行上边命令之前必须先将日志文件创建出来，ngrok不会自动创建该文件
+    touch /var/log/ngrokd.log
+
+然后将我们之前生成的ngrok客户端下载到需要穿透内网的机器上并且拷贝到/usr/local/bin目录下，在该机器上创建一个文件：~/.ngrok.yml并写入如下内容
+  server_addr: ngrok.你的域名.com:4443 # 这里指定客户端要连接的服务端的域名和端口号，4443是默认的监听的端口，可以在服务端进行更改
+  trust_host_root_certs: false # 这里指定是否验证服务端的证书，如果是从证书机构获取的证书则可以写为true，如果是自己生成的证书这里写为false
+  tunnels: # 这个配置项是你要开启的通道的配置
+    ssh: # ssh是这个通道的名称，可以随意命名
+        remote_port: 5022 # 该配置项可以申请远程服务器的固定端口，如果不设置该参数，每次在启动客户端的时候服务端都会随机分配一个端口号
+        proto: # 该配置项指明该通道使用哪些协议
+            tcp: 22 # 该配置项指明该通道开启本地tcp协议的22端口，即sshd服务端口
+    mysql:
+        remote_port: 53306
+        proto:
+            tcp: 3306
+    next:
+        subdomain: bf-web # 如果是启动http的通道则可以指定该配置项来声明该通道监听的子域名是什么，在访问时应该访问bf-web.ngrok.你的域名.com
+        proto:
+            http: 80
+    api:
+        subdomain: bf-api
+        proto:
+            http: 80
+
+最后启动我们的ngrok客户端程序即可
+  /usr/local/bin/ngrok -log=/var/log/ngrok.log -log-level=WARNING -config=/你上边的yml配置文件的路径/.ngrok.yml start-all
+注意：在执行上边命令之前必须先将日志文件创建出来，ngrok不会自动创建该文件
+  touch /var/log/ngrok.log
+
+如果启动后显示的界面中Tunnel Status一项显示为online则表示连接成功，通过ctrl + c来关闭客户端程序，这里也可以参照上边服务端的系统配置文件将客户端的启动也加入系统服务
+如果没成功连接请检查你的服务器防火墙是否开放了相关端口，以及你的域名是否正确添加了解析记录

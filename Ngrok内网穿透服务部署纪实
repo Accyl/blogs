@@ -55,10 +55,9 @@ ngrok是用go语言写的一个开源项目，所以在编译时需要有go语�
     [Install]
     WantedBy=multi-user.target
   注意：/usr/local/bin/ngrokd -domain=ngrok.你的域名.com -log=/var/log/ngrokd.log -log-level=WARNING这一行的参数一定不能有引号
-  
-  通过systemctl start ngrokd来启动你的服务端进程，如果需要开机启动可以执行systemctl enable ngrokd来加入开机启动的服务列表
-  注意：在执行上边命令之前必须先将日志文件创建出来，ngrok不会自动创建该文件
+  注意：在启动服务端之前必须先将日志文件创建出来，ngrok不会自动创建该文件，如果不预先创建将无法启动
     touch /var/log/ngrokd.log
+  通过systemctl start ngrokd来启动你的服务端进程，如果需要开机启动可以执行systemctl enable ngrokd来加入开机启动的服务列表
 
 然后将我们之前生成的ngrok客户端下载到需要穿透内网的机器上并且拷贝到/usr/local/bin目录下，在该机器上创建一个文件：~/.ngrok.yml并写入如下内容
   server_addr: ngrok.你的域名.com:4443 # 这里指定客户端要连接的服务端的域名和端口号，4443是默认的监听的端口，可以在服务端进行更改
@@ -82,9 +81,10 @@ ngrok是用go语言写的一个开源项目，所以在编译时需要有go语�
             http: 80
 
 最后启动我们的ngrok客户端程序即可
+  注意：在启动客户端之前必须先将日志文件创建出来，ngrok不会自动创建该文件，如果不预先创建将无法启动
+    touch /var/log/ngrok.log
   /usr/local/bin/ngrok -log=/var/log/ngrok.log -log-level=WARNING -config=/你上边的yml配置文件的路径/.ngrok.yml start-all
-注意：在执行上边命令之前必须先将日志文件创建出来，ngrok不会自动创建该文件
-  touch /var/log/ngrok.log
+
 
 如果启动后显示的界面中Tunnel Status一项显示为online则表示连接成功，通过ctrl + c来关闭客户端程序，这里也可以参照上边服务端的系统配置文件将客户端的启动也加入系统服务
 如果没成功连接请检查你的服务器防火墙是否开放了相关端口，以及你的域名是否正确添加了解析记录
